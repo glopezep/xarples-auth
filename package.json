@@ -1,0 +1,52 @@
+{
+	"name": "xarples-auth",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"prettier-watch": "onchange '**/*.js' -- prettier --write {{changed}}",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"@istanbuljs/nyc-config-typescript": "^0.1.3",
+		"@typescript-eslint/eslint-plugin": "^2.12.0",
+		"@typescript-eslint/parser": "^2.12.0",
+		"ava": "^2.4.0",
+		"eslint": "^6.8.0",
+		"eslint-config-prettier": "^6.7.0",
+		"eslint-config-prettier-standard": "^3.0.1",
+		"eslint-config-standard": "^14.1.0",
+		"eslint-plugin-import": "^2.19.1",
+		"eslint-plugin-node": "^10.0.0",
+		"eslint-plugin-prettier": "^3.1.2",
+		"eslint-plugin-promise": "^4.2.1",
+		"eslint-plugin-standard": "^4.0.1",
+		"husky": "^3.1.0",
+		"lerna": "^3.19.0",
+		"lint-staged": "^9.5.0",
+		"nyc": "^14.1.1",
+		"prettier": "1.19.1",
+		"source-map-support": "^0.5.16",
+		"ts-node": "^8.5.4",
+		"typescript": "^3.7.4"
+	},
+	"dependencies": {
+		"grants": "file:packages/grants",
+		"server": "file:packages/server"
+	},
+	"husky": {
+		"hooks": {
+			"pre-commit": "lint-staged"
+		}
+	},
+	"lint-staged": {
+		"*.{js,ts}": [
+			"prettier --write",
+			"eslint --fix",
+			"git add"
+		]
+	}
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@xarples-auth/grants",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "test": "ava --config ava.config.js --color",
+    "test:coverage": "nyc --reporter=lcov --reporter=text-summary npm run test"
+
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^3.7.4"
+  }
+}
