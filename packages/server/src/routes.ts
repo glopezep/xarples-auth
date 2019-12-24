@@ -44,6 +44,11 @@ router.post('/login', passport.authenticate('local'), (req, res) => {
   res.redirect(`/authorize${url.search}`)
 })
 
+router.get('/logout', (req, res) => {
+  req.logout()
+  res.redirect('/login')
+})
+
 router.get('/signup', (req, res) => {
   res.render('signup')
 })
