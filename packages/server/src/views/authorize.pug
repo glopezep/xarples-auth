@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+html(lang="en")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    meta(http-equiv="X-UA-Compatible", content="ie=edge")
+    link(rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.8.0/css/bulma.min.css")
+    title Authorize
+  body
+    .section
+      .container
+        .columns
+          .column.is-6.is-offset-3
+            .columns
+              .column
+                .title.is-1 Logo
+              .column
+                .is-6 Logged in as #{user.username}
+                a Not you?
+            hr
+            .columns
+              .column
+                .title.is-4 Spotify for Developers: Console
+                .subtitle.is-6 You agree that Spotify for Developers: Console will be able to:
+            .columns
+              .column
+                .is-size-6.has-text-weight-bold View your Spotify account data
+                .is-size-6 View your name.
+                .subtitle.is-6 Your name and username, your profile picture, how many followers you have on Spotify and your public playlists.
+            .columns
+              .column
+                .is-size-6.has-text-weight-bold View your Spotify account data
+                .is-size-6 View your name.
+                .subtitle.is-6 Your name and username, your profile picture, how many followers you have on Spotify and your public playlists.
+            .columns
+              .column
+                .is-size-6.has-text-weight-bold View your Spotify account data
+                .is-size-6 View your name.
+                .subtitle.is-6 Your name and username, your profile picture, how many followers you have on Spotify and your public playlists.
+            hr
+            .columns
+              .column
+                .is-6.has-text-weight-bold You can remove this access at any time at 
+                a spotify.com/account.
+            .columns
+              .column
+                .is-6.has-text-weight-bold For more information about how Spotify for Developers: Console can use your personal data, please see Spotify for Developers: Console's privacy policy.
+
+            .columns
+              .column
+                form(method="post", action="/authorize/accept")
+                  button.button.is-primary.is-rounded.is-fullwidth Accept
+            .columns
+              .column
+                form(method="post", action="/authorize/reject")
+                  button.button.is-white.is-rounded.is-fullwidth Cancel
+
+    
+    script(src="https://use.fontawesome.com/releases/v5.3.1/js/all.js")

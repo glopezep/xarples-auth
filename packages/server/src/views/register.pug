@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+html(lang="en")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    meta(http-equiv="X-UA-Compatible", content="ie=edge")
+    link(rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.2.6/dist/css/uikit.min.css")
+    title Register application
+  body
+    .uk-container.uk-margin-large-top
+      .uk-flex.uk-flex-center.flex-middle
+        div(class="uk-card uk-card-default uk-card-body uk-width-1-2@m")
+          form(method="post", action="/register")
+            fieldset.uk-fieldset
+              legend.uk-legend Register a new Application
+              .uk-margin
+                label.uk-form-label Application name
+                input.uk-input(type='text', name='name')
+              .uk-margin
+                label.uk-form-label Homepage URL
+                input.uk-input(type='text', name='homepage_url')
+              .uk-margin
+                label.uk-form-label Application description
+                textarea.uk-textarea(name='description', rows='5', placeholder='Application description is optional')
+              .uk-margin
+                label.uk-form-label Authorization callback URL
+                input.uk-input(type='text', name='callback_url')
+              .uk-margin
+                button.uk-button.uk-button-primary Register
+    script(src="https://cdn.jsdelivr.net/npm/uikit@3.2.6/dist/js/uikit.min.js")
+    script(src="https://cdn.jsdelivr.net/npm/uikit@3.2.6/dist/js/uikit-icons.min.js")

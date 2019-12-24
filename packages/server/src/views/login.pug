@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+html(lang="en")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    meta(http-equiv="X-UA-Compatible", content="ie=edge")
+    link(rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.2.6/dist/css/uikit.min.css")
+    title Login
+  body
+    .uk-container.uk-margin-large-top
+      .uk-flex.uk-flex-center.flex-middle
+        div(class="uk-card uk-card-default uk-card-body uk-width-1-2@m")
+          form(method="post", action="/login")
+            fieldset.uk-fieldset
+              legend.uk-legend Login
+              .uk-margin
+                label.uk-form-label Username
+                input.uk-input(type='text', name='username')
+              .uk-margin
+                label.uk-form-label Password
+                input.uk-input(type='password', name='password')
+              .uk-margin
+                button.uk-button.uk-button-primary Login
+    script(src="https://cdn.jsdelivr.net/npm/uikit@3.2.6/dist/js/uikit.min.js")
+    script(src="https://cdn.jsdelivr.net/npm/uikit@3.2.6/dist/js/uikit-icons.min.js")

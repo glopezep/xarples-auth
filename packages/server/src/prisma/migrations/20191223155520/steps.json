@@ -1,0 +1,51 @@
+{
+  "version": "0.3.14-fixed",
+  "steps": [
+    {
+      "tag": "DeleteField",
+      "model": "Client",
+      "field": "createdAt"
+    },
+    {
+      "tag": "DeleteField",
+      "model": "Client",
+      "field": "updatedAt"
+    },
+    {
+      "tag": "DeleteField",
+      "model": "User",
+      "field": "createdAt"
+    },
+    {
+      "tag": "DeleteField",
+      "model": "User",
+      "field": "updatedAt"
+    },
+    {
+      "tag": "UpdateField",
+      "model": "User",
+      "field": "name",
+      "arity": "Optional"
+    },
+    {
+      "tag": "DeleteField",
+      "model": "AuthorizationCode",
+      "field": "createdAt"
+    },
+    {
+      "tag": "DeleteField",
+      "model": "AuthorizationCode",
+      "field": "updatedAt"
+    },
+    {
+      "tag": "DeleteField",
+      "model": "Scope",
+      "field": "createdAt"
+    },
+    {
+      "tag": "DeleteField",
+      "model": "Scope",
+      "field": "updatedAt"
+    }
+  ]
+}
