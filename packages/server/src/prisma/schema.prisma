@@ -7,23 +7,39 @@ datasource db {
   url      = "file:dev.db"
 }
 
+model AccessToken {
+  id      String   @default(cuid()) @id
+  token   String   @unique
+  client  Client
+  user    User
+  scope   String
+}
+
+model RefreshToken {
+  id      String   @default(cuid()) @id
+  token   String   @unique
+  client  Client
+  user    User
+  scope   String
+}
+
 model Client {
   id            String   @default(cuid()) @id
-  client_id     String?  @unique
-  client_secret String?  @unique
+  client_id     String   @unique
+  client_secret String   @unique
   name          String
   description   String
-  homepage_url  String
+  homepage_url  String?
   redirect_uri  String
+  user          User
 }
 
 model AuthorizationCode {
-  id            String   @default(cuid()) @id
-  client_id     String?  @unique
-  client_secret String?  @unique
-  redirect_uri  String
-  code          String
-  scope         Scope[]
+  id      String   @default(cuid()) @id
+  client  Client
+  user    User
+  code    String @unique
+  scope   String
 }
 
 model Scope {
@@ -37,15 +53,5 @@ model User {
   email    String  @unique
   username String  @unique
   password String
-  name     String?
-}
-
-model Post {
-  id        String   @default(cuid()) @id
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  published Boolean  @default(true)
-  title     String
-  content   String?
-  author    User?
+  name     String
 }

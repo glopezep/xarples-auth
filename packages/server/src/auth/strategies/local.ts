@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import { Strategy } from 'passport-local'
 import { Photon } from '@prisma/photon'
 
@@ -16,10 +17,12 @@ export default new Strategy(async (username, password, done) => {
       }
     })
 
-    console.log(user)
-    console.log(password)
+    const passwordHash = crypto
+      .createHash('sha256')
+      .update(password)
+      .digest('hex')
 
-    if (!user || user.password !== password) {
+    if (!user || user.password !== passwordHash) {
       return done(null, false, { message: 'Incorrect username or password' })
     }
 

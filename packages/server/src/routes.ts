@@ -1,6 +1,12 @@
-import express from 'express'
+import crypto from 'crypto'
 import querystring from 'querystring'
-import { Photon } from '@prisma/photon'
+import express from 'express'
+import {
+  Photon,
+  ClientCreateInput, // eslint-disable-line
+  UserCreateInput, // eslint-disable-line
+  AuthorizationCodeCreateInput // eslint-disable-line
+} from '@prisma/photon'
 
 import configurePassport from './auth/configurePassport'
 
@@ -16,20 +22,26 @@ router.post('/register', async (req, res) => {
   try {
     await photon.connect()
 
-    const client = await photon.clients.create({
-      data: {
-        ...req.body,
-        client_id: 'asd787238hs78asa87281728aSasaSasaS',
-        client_secret: 'nkdjDAsdanwe123sdas141098d'
+    const data: ClientCreateInput = req.body
+
+    data.client_id = crypto.randomBytes(32).toString('hex')
+    data.client_secret = crypto.randomBytes(256).toString('hex')
+    data.user = {
+      connect: {
+        id: req.user.id
       }
+    }
+
+    const client = await photon.clients.create({
+      data
     })
 
     res.status(200).send(client)
   } catch (error) {
+    await photon.disconnect()
+
     console.log(error)
     res.status(500).send(error)
-  } finally {
-    await photon.disconnect()
   }
 })
 
@@ -57,8 +69,15 @@ router.post('/signup', async (req, res) => {
   try {
     await photon.connect()
 
+    const data: UserCreateInput = req.body
+
+    data.password = crypto
+      .createHash('sha256')
+      .update(data.password)
+      .digest('hex')
+
     const user = await photon.users.create({
-      data: req.body
+      data
     })
 
     res.status(200).send(user)
@@ -98,10 +117,7 @@ router.get('/authorize', async (req, res, next) => {
       return res.send('Invalid client')
     }
 
-    if (
-      req.query.redirect_uri &&
-      req.query.redirect_uri !== client.redirect_uri
-    ) {
+    if (req.query.redirect_uri !== client.redirect_uri) {
       return res.send('Invalid redirect_uri')
     }
 
@@ -120,7 +136,7 @@ router.get('/authorize', async (req, res, next) => {
   }
 })
 
-router.post('/authorize/:action', (req, res) => {
+router.post('/authorize/:action', async (req, res) => {
   const actions = ['accept', 'reject']
   const url = new URL(req.headers.referer)
   const search = url.search.replace('?', '')
@@ -143,8 +159,31 @@ router.post('/authorize/:action', (req, res) => {
     )
   }
 
+  await photon.connect()
+
+  const clientId = typeof params.client_id === 'string' && params.client_id
+
+  const data: AuthorizationCodeCreateInput = {
+    code: crypto.randomBytes(32).toString('hex'),
+    scope: '',
+    user: {
+      connect: {
+        id: req.user.id
+      }
+    },
+    client: {
+      connect: {
+        client_id: clientId
+      }
+    }
+  }
+
+  const authorizationCode = await photon.authorizationCodes.create({
+    data
+  })
+
   const query = {
-    code: 'du7q22easSASFsmmsmaSALKN9',
+    code: authorizationCode.code,
     state: params.state
   }
 
@@ -155,7 +194,135 @@ router.post('/authorize/:action', (req, res) => {
   res.redirect(`${params.redirect_uri}?${querystring.stringify(query)}`)
 })
 
-router.post('/token', async (req, res) => {})
+router.post('/token', async (req, res) => {
+  const grantTypes = ['authorization_code', 'client_credentials']
+
+  if (!req.body.client_id) {
+    return res.status(400).send({
+      error: 'invalid_request',
+      error_description: 'Missing required parameter client_id'
+    })
+  }
+
+  if (!req.body.grant_type || !grantTypes.includes(req.body.grant_type)) {
+    return res.status(400).send({
+      error: 'invalid_request',
+      error_description: `grant_type should be ${grantTypes.join(' or ')}`
+    })
+  }
+
+  if (!req.body.redirect_uri) {
+    return res.status(400).send({
+      error: 'invalid_request',
+      error_description: 'Missing required parameter redirect_uri'
+    })
+  }
+
+  if (!req.body.code) {
+    return res.status(400).send({
+      error: 'invalid_request',
+      error_description: 'Missing required parameter code'
+    })
+  }
+
+  if (
+    !req.headers.authorization ||
+    !req.headers.authorization.includes('Basic')
+  ) {
+    res
+      .status(400)
+      .send({
+        error: 'invalid_request',
+        error_description: 'Missing required Authorization Header'
+      })
+      .setHeader('WWW-Authenticate', 'Basic')
+  }
+
+  const base64Credentials = req.headers.authorization.split(' ')[1]
+  const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii')
+  const [clientId, clientSecret] = credentials.split(':')
+
+  const client = await photon.clients.findOne({
+    where: { client_id: clientId, client_secret: clientSecret }
+  })
+
+  if (!client) {
+    return res
+      .status(401)
+      .send({ error: 'invalid client', error_description: '' })
+      .setHeader('WWW-Authenticate', 'Basic')
+  }
+
+  const authorizationCode = await photon.authorizationCodes.findOne({
+    where: { code: req.body.code }
+  })
+
+  if (!authorizationCode) {
+    return res.status(400).send({
+      error: 'invalid_grant',
+      error_description: 'Invalid authorization code'
+    })
+  }
+
+  // verify if the code is expired
+
+  /**
+   if (!authorizationCode is expired) {
+    return res.status(400).send({
+      error: 'invalid_grant',
+      error_description: 'Authorization code is expired'
+    })
+  }
+  */
+
+  if (req.body.redirect_uri !== client.redirect_uri) {
+    return res.status(400).send({
+      error: 'invalid_grant',
+      error_description: 'Invalid redirect_uri'
+    })
+  }
+
+  const accesToken = await photon.accessTokens.create({
+    data: {
+      token: crypto.randomBytes(32).toString('hex'),
+      scope: '',
+      user: {
+        connect: {
+          id: req.user.id
+        }
+      },
+      client: {
+        connect: {
+          client_id: clientId
+        }
+      }
+    }
+  })
+
+  const refreshToken = await photon.refreshTokens.create({
+    data: {
+      token: crypto.randomBytes(32).toString('hex'),
+      scope: '',
+      user: {
+        connect: {
+          id: req.user.id
+        }
+      },
+      client: {
+        connect: {
+          client_id: clientId
+        }
+      }
+    }
+  })
+
+  res.status(200).send({
+    access_token: accesToken.token,
+    token_type: 'bearer',
+    expires_in: 3600,
+    refresh_token: refreshToken.token
+  })
+})
 
 router.get('/userinfo', (req, res) => {})
 
