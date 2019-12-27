@@ -14,6 +14,18 @@ const router = express.Router()
 const photon = new Photon()
 const passport = configurePassport()
 
+function ensureAuth(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).redirect('/login')
+  }
+
+  next()
+}
+
 router.get('/register', (req, res) => {
   res.render('register', {})
 })
@@ -28,6 +40,7 @@ router.post('/register', async (req, res) => {
     data.client_secret = crypto.randomBytes(256).toString('hex')
     data.user = {
       connect: {
+        // @ts-ignore
         id: req.user.id
       }
     }
@@ -51,9 +64,15 @@ router.get('/login', (req, res) => {
 })
 
 router.post('/login', passport.authenticate('local'), (req, res) => {
-  const url = new URL(req.headers.referer)
+  let search = ''
 
-  res.redirect(`/authorize${url.search}`)
+  if (req.headers.referer) {
+    const url = new URL(req.headers.referer)
+
+    search = url.search
+  }
+
+  res.redirect(`/authorize${search}`)
 })
 
 router.get('/logout', (req, res) => {
@@ -89,7 +108,7 @@ router.post('/signup', async (req, res) => {
   }
 })
 
-router.get('/authorize', async (req, res, next) => {
+router.get('/authorize', ensureAuth, async (req, res, next) => {
   try {
     if (!req.query.client_id) {
       return res.send('Missing required parameter client_id')
@@ -106,11 +125,7 @@ router.get('/authorize', async (req, res, next) => {
     await photon.connect()
 
     const client = await photon.clients.findOne({
-      where: { client_id: req.query.client_id },
-      select: {
-        client_id: true,
-        redirect_uri: true
-      }
+      where: { client_id: req.query.client_id }
     })
 
     if (!client) {
@@ -136,7 +151,7 @@ router.get('/authorize', async (req, res, next) => {
   }
 })
 
-router.post('/authorize/:action', async (req, res) => {
+router.post('/authorize/:action', ensureAuth, async (req, res) => {
   const actions = ['accept', 'reject']
   const url = new URL(req.headers.referer)
   const search = url.search.replace('?', '')
@@ -168,6 +183,7 @@ router.post('/authorize/:action', async (req, res) => {
     scope: '',
     user: {
       connect: {
+        // @ts-ignore
         id: req.user.id
       }
     },
@@ -194,7 +210,7 @@ router.post('/authorize/:action', async (req, res) => {
   res.redirect(`${params.redirect_uri}?${querystring.stringify(query)}`)
 })
 
-router.post('/token', async (req, res) => {
+router.post('/token', ensureAuth, async (req, res) => {
   const grantTypes = ['authorization_code', 'client_credentials']
 
   if (!req.body.client_id) {
@@ -243,7 +259,7 @@ router.post('/token', async (req, res) => {
   const [clientId, clientSecret] = credentials.split(':')
 
   const client = await photon.clients.findOne({
-    where: { client_id: clientId, client_secret: clientSecret }
+    where: { client_id: clientId }
   })
 
   if (!client) {
@@ -251,6 +267,20 @@ router.post('/token', async (req, res) => {
       .status(401)
       .send({ error: 'invalid client', error_description: '' })
       .setHeader('WWW-Authenticate', 'Basic')
+  }
+
+  if (client.client_secret !== clientSecret) {
+    return res.status(400).send({
+      error: 'invalid_client',
+      error_description: 'Invalid client credentials'
+    })
+  }
+
+  if (req.body.redirect_uri !== client.redirect_uri) {
+    return res.status(400).send({
+      error: 'invalid_grant',
+      error_description: 'Invalid redirect_uri'
+    })
   }
 
   const authorizationCode = await photon.authorizationCodes.findOne({
@@ -264,6 +294,10 @@ router.post('/token', async (req, res) => {
     })
   }
 
+  await photon.authorizationCodes.delete({
+    where: { code: authorizationCode.code }
+  })
+
   // verify if the code is expired
 
   /**
@@ -275,19 +309,13 @@ router.post('/token', async (req, res) => {
   }
   */
 
-  if (req.body.redirect_uri !== client.redirect_uri) {
-    return res.status(400).send({
-      error: 'invalid_grant',
-      error_description: 'Invalid redirect_uri'
-    })
-  }
-
   const accesToken = await photon.accessTokens.create({
     data: {
       token: crypto.randomBytes(32).toString('hex'),
       scope: '',
       user: {
         connect: {
+          // @ts-ignore
           id: req.user.id
         }
       },
@@ -305,6 +333,7 @@ router.post('/token', async (req, res) => {
       scope: '',
       user: {
         connect: {
+          // @ts-ignore
           id: req.user.id
         }
       },
@@ -318,7 +347,7 @@ router.post('/token', async (req, res) => {
 
   res.status(200).send({
     access_token: accesToken.token,
-    token_type: 'bearer',
+    token_type: 'Bearer',
     expires_in: 3600,
     refresh_token: refreshToken.token
   })

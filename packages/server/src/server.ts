@@ -45,7 +45,7 @@ app.use(function(
   res.status(500).send('Something broke!')
 })
 
-function main() {
+async function main() {
   server.listen(5000, () => {
     console.log('Server listening on http://localhost:5000')
   })

@@ -15,13 +15,13 @@ html(lang="en")
               .column
                 .title.is-1 Logo
               .column
-                .is-6 Logged in as #{user.username}
+                .is-6 Logged in as #{user.name}
                 a(href="/logout") Not you?
             hr
             .columns
               .column
-                .title.is-4 Spotify for Developers: Console
-                .subtitle.is-6 You agree that Spotify for Developers: Console will be able to:
+                .title.is-4 #{client.name}
+                .subtitle.is-6 You agree that #{client.name} will be able to:
             .columns
               .column
                 .is-size-6.has-text-weight-bold View your Spotify account data
