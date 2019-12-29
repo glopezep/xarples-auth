@@ -26,6 +26,21 @@ function ensureAuth(
   next()
 }
 
+function base64URLEncode(str: Buffer) {
+  return str
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '')
+}
+
+function sha256(buffer: string) {
+  return crypto
+    .createHash('sha256')
+    .update(buffer)
+    .digest()
+}
+
 router.get('/register', (req, res) => {
   res.render('register', {})
 })
@@ -210,8 +225,151 @@ router.post('/authorize/:action', ensureAuth, async (req, res) => {
   res.redirect(`${params.redirect_uri}?${querystring.stringify(query)}`)
 })
 
-router.post('/token', ensureAuth, async (req, res) => {
-  const grantTypes = ['authorization_code', 'client_credentials']
+router.post('/token', async (req, res) => {
+  const grantTypes = [
+    'authorization_code',
+    'client_credentials',
+    'refresh_token'
+  ]
+
+  if (req.body.grant_type === 'refresh_token') {
+    if (!req.body.refresh_token) {
+      return res.status(400).send({
+        error: 'invalid_request',
+        error_description: 'Missing required parameter refresh_token'
+      })
+    }
+
+    if (
+      !req.headers.authorization ||
+      !req.headers.authorization.includes('Basic')
+    ) {
+      return res
+        .status(400)
+        .send({
+          error: 'invalid_request',
+          error_description: 'Missing required Authorization Header'
+        })
+        .setHeader('WWW-Authenticate', 'Basic')
+    }
+
+    const base64Credentials = req.headers.authorization.split(' ')[1]
+    const credentials = Buffer.from(base64Credentials, 'base64').toString(
+      'ascii'
+    )
+    const [clientId, clientSecret] = credentials.split(':')
+
+    const client = await photon.clients.findOne({
+      where: { client_id: clientId }
+    })
+
+    if (!client) {
+      return res
+        .status(401)
+        .send({ error: 'invalid client', error_description: '' })
+        .setHeader('WWW-Authenticate', 'Basic')
+    }
+
+    if (client.client_secret !== clientSecret) {
+      return res.status(400).send({
+        error: 'invalid_client',
+        error_description: 'Invalid client credentials'
+      })
+    }
+
+    const refreshToken = await photon.refreshTokens.findOne({
+      where: { token: req.body.refresh_token },
+      include: { user: true, client: true }
+    })
+
+    if (!refreshToken || refreshToken.client.id !== client.id) {
+      return res.status(400).send({
+        error: 'invalid_grant',
+        error_description: 'Invalid refresh_token'
+      })
+    }
+
+    const accesToken = await photon.accessTokens.create({
+      data: {
+        token: crypto.randomBytes(32).toString('hex'),
+        scope: '',
+        user: {
+          connect: {
+            id: refreshToken.user.id
+          }
+        },
+        client: {
+          connect: {
+            client_id: clientId
+          }
+        }
+      }
+    })
+
+    res.send({
+      access_token: accesToken.token,
+      token_type: 'Bearer',
+      expires_in: 3600,
+      refresh_token: refreshToken.token
+    })
+  }
+
+  if (req.body.grant_type === 'client_credentials') {
+    if (
+      !req.headers.authorization ||
+      !req.headers.authorization.includes('Basic')
+    ) {
+      return res
+        .status(400)
+        .send({
+          error: 'invalid_request',
+          error_description: 'Missing required Authorization Header'
+        })
+        .setHeader('WWW-Authenticate', 'Basic')
+    }
+
+    const base64Credentials = req.headers.authorization.split(' ')[1]
+    const credentials = Buffer.from(base64Credentials, 'base64').toString(
+      'ascii'
+    )
+    const [clientId, clientSecret] = credentials.split(':')
+
+    const client = await photon.clients.findOne({
+      where: { client_id: clientId }
+    })
+
+    if (!client) {
+      return res
+        .status(401)
+        .send({ error: 'invalid client', error_description: '' })
+        .setHeader('WWW-Authenticate', 'Basic')
+    }
+
+    if (client.client_secret !== clientSecret) {
+      return res.status(400).send({
+        error: 'invalid_client',
+        error_description: 'Invalid client credentials'
+      })
+    }
+
+    const accesToken = await photon.accessTokens.create({
+      data: {
+        token: crypto.randomBytes(32).toString('hex'),
+        scope: '',
+        client: {
+          connect: {
+            client_id: clientId
+          }
+        }
+      }
+    })
+
+    res.send({
+      access_token: accesToken.token,
+      token_type: 'Bearer',
+      expires_in: 3600
+    })
+  }
 
   if (!req.body.client_id) {
     return res.status(400).send({
@@ -234,7 +392,7 @@ router.post('/token', ensureAuth, async (req, res) => {
     })
   }
 
-  if (!req.body.code) {
+  if (req.body.grant_type === 'code' && !req.body.code) {
     return res.status(400).send({
       error: 'invalid_request',
       error_description: 'Missing required parameter code'
@@ -284,10 +442,11 @@ router.post('/token', ensureAuth, async (req, res) => {
   }
 
   const authorizationCode = await photon.authorizationCodes.findOne({
-    where: { code: req.body.code }
+    where: { code: req.body.code },
+    include: { user: true, client: true }
   })
 
-  if (!authorizationCode) {
+  if (!authorizationCode || authorizationCode.client.id !== client.id) {
     return res.status(400).send({
       error: 'invalid_grant',
       error_description: 'Invalid authorization code'
@@ -315,8 +474,7 @@ router.post('/token', ensureAuth, async (req, res) => {
       scope: '',
       user: {
         connect: {
-          // @ts-ignore
-          id: req.user.id
+          id: authorizationCode.user.id
         }
       },
       client: {
@@ -333,8 +491,7 @@ router.post('/token', ensureAuth, async (req, res) => {
       scope: '',
       user: {
         connect: {
-          // @ts-ignore
-          id: req.user.id
+          id: authorizationCode.user.id
         }
       },
       client: {
@@ -362,22 +519,10 @@ router.get('/.well-known/oauth-authorization-server', (req, res) => {
     issuer: 'http://localhost:5000',
     authorization_endpoint: 'http://localhost:5000/authorize',
     token_endpoint: 'http://localhost:5000/token',
-    token_endpoint_auth_methods_supported: [
-      'client_secret_basic',
-      'private_key_jwt'
-    ],
-    token_endpoint_auth_signing_alg_values_supported: ['RS256', 'ES256'],
+    token_endpoint_auth_methods_supported: ['client_secret_basic'],
     userinfo_endpoint: 'http://localhost:5000/userinfo',
-    jwks_uri: 'http://localhost:5000/jwks.json',
     registration_endpoint: 'http://localhost:5000/register',
-    scopes_supported: [
-      'openid',
-      'profile',
-      'email',
-      'address',
-      'phone',
-      'offline_access'
-    ],
+    scopes_supported: [''],
     response_types_supported: ['code', 'token'],
     service_documentation: 'http://localhost:5000/docs',
     ui_locales_supported: ['en-US']

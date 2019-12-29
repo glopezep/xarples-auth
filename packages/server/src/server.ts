@@ -6,7 +6,9 @@ import bodyParser from 'body-parser'
 import cookieParser from 'cookie-parser'
 import routes from './routes'
 import * as auth from './auth'
+import { Photon } from '@prisma/photon'
 
+const photon = new Photon()
 const app = express()
 const server = http.createServer(app)
 const passport = auth.configurePassport()
@@ -46,6 +48,12 @@ app.use(function(
 })
 
 async function main() {
+  const tokens = await photon.accessTokens.findMany({
+    include: { user: true }
+  })
+
+  console.log(tokens)
+
   server.listen(5000, () => {
     console.log('Server listening on http://localhost:5000')
   })
