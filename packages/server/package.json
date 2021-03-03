@@ -36,6 +36,6 @@
 		"express-session": "^1.17.0",
 		"passport": "^0.4.1",
 		"passport-local": "^1.0.0",
-		"pug": "^2.0.4"
+		"pug": "^3.0.1"
 	}
 }
